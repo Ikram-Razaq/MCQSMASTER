@@ -1,0 +1,1433 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MCQ Mastery Hub - Study & Practice Engine</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        primary: { 50: '#f0f9ff', 100: '#e0f2fe', 500: '#0284c7', 600: '#0284c7', 700: '#0369a1', 800: '#075985', 900: '#0c4a6e' }
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- PapaParse & SheetJS -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <style>
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: rgba(0,0,0,0.05); }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.2); border-radius: 3px; }
+    </style>
+</head>
+<body class="bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-100 h-full font-sans antialiased flex flex-col">
+
+    <!-- LOGIN MODAL / SCREEN -->
+    <div id="login-modal" class="fixed inset-0 z-50 bg-slate-900/90 backdrop-blur-md flex items-center justify-center p-4">
+        <div class="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 w-full max-w-md rounded-2xl p-6 sm:p-8 shadow-2xl space-y-6">
+            <div class="text-center space-y-2">
+                <div class="inline-flex items-center justify-center bg-primary-600 text-white w-14 h-14 rounded-2xl shadow-lg mb-2">
+                    <i class="fa-solid fa-graduation-cap text-2xl"></i>
+                </div>
+                <h2 class="text-2xl font-extrabold text-slate-900 dark:text-white tracking-tight">Portal Login</h2>
+                <p class="text-xs text-slate-500 dark:text-slate-400">Select role & enter credentials to access MCQ Master</p>
+            </div>
+
+            <div class="bg-slate-50 dark:bg-slate-700/50 p-3 rounded-xl border border-slate-200 dark:border-slate-600 text-xs space-y-1">
+                <div class="flex justify-between font-mono"><span class="font-bold text-primary-600">Admin Login:</span> admin / admin123</div>
+                <div class="flex justify-between font-mono"><span class="font-bold text-emerald-600">Student Login:</span> user / user123</div>
+            </div>
+
+            <form id="login-form" onsubmit="handleLogin(event)" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-bold uppercase text-slate-600 dark:text-slate-300 mb-1">Username</label>
+                    <input type="text" id="login-username" required placeholder="admin or user" class="w-full bg-slate-50 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-xl px-4 py-2.5 text-slate-900 dark:text-white text-sm font-medium focus:ring-2 focus:ring-primary-500">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold uppercase text-slate-600 dark:text-slate-300 mb-1">Password</label>
+                    <input type="password" id="login-password" required placeholder="••••••••" class="w-full bg-slate-50 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-xl px-4 py-2.5 text-slate-900 dark:text-white text-sm font-medium focus:ring-2 focus:ring-primary-500">
+                </div>
+                <div id="login-error" class="hidden text-xs text-rose-500 font-bold text-center">Invalid username or password!</div>
+                <button type="submit" class="w-full bg-primary-600 hover:bg-primary-700 text-white font-bold py-3 rounded-xl shadow-lg transition text-sm">
+                    Log In <i class="fa-solid fa-right-to-bracket ml-2"></i>
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- TOP HEADER -->
+    <header class="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 h-16 flex items-center justify-between px-4 sm:px-6 sticky top-0 z-30">
+        <div class="flex items-center space-x-3">
+            <button id="mobile-menu-btn" class="md:hidden text-slate-500 hover:text-slate-700 dark:text-slate-400 p-2 focus:outline-none">
+                <i class="fa-solid fa-bars text-xl"></i>
+            </button>
+            <div class="flex items-center space-x-2">
+                <div class="bg-primary-600 text-white p-2 rounded-lg flex items-center justify-center shadow-md">
+                    <i class="fa-solid fa-graduation-cap text-lg"></i>
+                </div>
+                <span class="font-bold text-lg sm:text-xl tracking-tight text-slate-900 dark:text-white">MCQ<span class="text-primary-600">Master</span></span>
+            </div>
+        </div>
+
+        <div class="flex items-center space-x-3">
+            <div id="file-status-pill" class="hidden sm:flex items-center space-x-2 text-xs font-medium px-3 py-1.5 rounded-full bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800">
+                <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                <span id="file-status-text">Online Source Connected</span>
+            </div>
+            
+            <button id="admin-rescan-btn" onclick="fetchGoogleSheetData(true)" title="Sync Fresh Data from Google Sheet" class="p-2 text-slate-500 hover:text-primary-600 dark:text-slate-400 dark:hover:text-primary-400 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition">
+                <i class="fa-solid fa-rotate text-base"></i>
+            </button>
+
+            <div class="flex items-center space-x-2 pl-2 border-l border-slate-200 dark:border-slate-700">
+                <div class="text-right hidden sm:block">
+                    <span id="user-display-name" class="block text-xs font-bold text-slate-800 dark:text-slate-200">Admin</span>
+                    <span id="user-display-role" class="block text-[10px] font-semibold text-primary-600 uppercase">Administrator</span>
+                </div>
+                <button onclick="logout()" title="Logout" class="p-2 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/50 rounded-lg transition">
+                    <i class="fa-solid fa-right-from-bracket text-base"></i>
+                </button>
+            </div>
+
+            <button id="theme-toggle" class="p-2 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition">
+                <i class="fa-solid fa-moon text-lg dark:hidden"></i>
+                <i class="fa-solid fa-sun text-lg hidden dark:block text-amber-400"></i>
+            </button>
+        </div>
+    </header>
+
+    <div class="flex flex-1 overflow-hidden">
+        <!-- SIDEBAR NAVIGATION -->
+        <aside id="sidebar" class="fixed md:static inset-y-0 left-0 z-40 w-64 bg-white dark:bg-slate-800 border-r border-slate-200 dark:border-slate-700 flex flex-col justify-between transform -translate-x-full md:translate-x-0 transition-transform duration-200 ease-in-out pt-16 md:pt-0">
+            <div class="p-4 space-y-1">
+                <nav class="space-y-1">
+                    <button onclick="switchTab('dashboard')" id="nav-dashboard" class="nav-btn w-full flex items-center space-x-3 px-4 py-3 rounded-xl font-medium text-sm transition bg-primary-50 text-primary-600 dark:bg-slate-700 dark:text-primary-400">
+                        <i class="fa-solid fa-chart-pie w-5 text-center"></i>
+                        <span>Dashboard</span>
+                    </button>
+                    <button onclick="switchTab('upload')" id="nav-upload" class="admin-only nav-btn w-full flex items-center space-x-3 px-4 py-3 rounded-xl font-medium text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition">
+                        <i class="fa-solid fa-link w-5 text-center"></i>
+                        <span>Google Sheet / Excel Sync</span>
+                    </button>
+                    <button onclick="switchTab('study')" id="nav-study" class="nav-btn w-full flex items-center space-x-3 px-4 py-3 rounded-xl font-medium text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition">
+                        <i class="fa-solid fa-book-open w-5 text-center"></i>
+                        <span>Study MCQs</span>
+                    </button>
+                    <button onclick="switchTab('test-config')" id="nav-test-config" class="nav-btn w-full flex items-center space-x-3 px-4 py-3 rounded-xl font-medium text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition">
+                        <i class="fa-solid fa-pen-to-square w-5 text-center"></i>
+                        <span>Take a Test</span>
+                    </button>
+                    <button onclick="switchTab('history')" id="nav-history" class="nav-btn w-full flex items-center space-x-3 px-4 py-3 rounded-xl font-medium text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition">
+                        <i class="fa-solid fa-clock-rotate-left w-5 text-center"></i>
+                        <span>Test History</span>
+                    </button>
+                </nav>
+            </div>
+
+            <div class="p-4 border-t border-slate-200 dark:border-slate-700 text-xs text-slate-500 dark:text-slate-400 space-y-2">
+                <div class="flex justify-between items-center">
+                    <span>MCQs Loaded:</span>
+                    <span id="sidebar-mcq-count" class="font-bold text-slate-800 dark:text-slate-200">0</span>
+                </div>
+                <div class="flex justify-between items-center">
+                    <span>Active Dataset:</span>
+                    <span id="sidebar-active-source" class="font-medium text-primary-600 dark:text-primary-400 truncate max-w-[110px]">None</span>
+                </div>
+            </div>
+        </aside>
+
+        <!-- MAIN VIEWPORT -->
+        <main class="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 custom-scrollbar relative">
+            
+            <div id="alert-banner" class="hidden mb-6 p-4 rounded-xl flex items-center justify-between border shadow-sm transition">
+                <div class="flex items-center space-x-3">
+                    <i id="alert-icon" class="fa-solid text-lg"></i>
+                    <span id="alert-msg" class="text-sm font-medium"></span>
+                </div>
+                <button onclick="dismissAlert()" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <!-- DASHBOARD -->
+            <section id="view-dashboard" class="space-y-6">
+                <div>
+                    <h1 class="text-2xl font-bold text-slate-900 dark:text-white">Dashboard Overview</h1>
+                    <p class="text-slate-500 dark:text-slate-400 text-sm">Summary of your loaded MCQ bank and test performance.</p>
+                </div>
+
+                <div class="grid grid-cols-2 lg:grid-cols-5 gap-4">
+                    <div class="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm">
+                        <div class="text-slate-500 dark:text-slate-400 text-xs font-semibold uppercase tracking-wider mb-2">Total MCQs</div>
+                        <div id="dash-total-mcqs" class="text-3xl font-extrabold text-slate-900 dark:text-white">0</div>
+                    </div>
+                    <div class="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm">
+                        <div class="text-slate-500 dark:text-slate-400 text-xs font-semibold uppercase tracking-wider mb-2">Subjects</div>
+                        <div id="dash-total-subjects" class="text-3xl font-extrabold text-primary-600 dark:text-primary-400">0</div>
+                    </div>
+                    <div class="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm">
+                        <div class="text-slate-500 dark:text-slate-400 text-xs font-semibold uppercase tracking-wider mb-2">Tests Taken</div>
+                        <div id="dash-tests-taken" class="text-3xl font-extrabold text-slate-900 dark:text-white">0</div>
+                    </div>
+                    <div class="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm">
+                        <div class="text-slate-500 dark:text-slate-400 text-xs font-semibold uppercase tracking-wider mb-2">Highest Score</div>
+                        <div id="dash-high-score" class="text-3xl font-extrabold text-emerald-600 dark:text-emerald-400">0%</div>
+                    </div>
+                    <div class="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm col-span-2 lg:col-span-1">
+                        <div class="text-slate-500 dark:text-slate-400 text-xs font-semibold uppercase tracking-wider mb-2">Avg Accuracy</div>
+                        <div id="dash-avg-score" class="text-3xl font-extrabold text-amber-500">0%</div>
+                    </div>
+                </div>
+
+                <div class="grid md:grid-cols-2 gap-6">
+                    <div class="bg-gradient-to-br from-primary-600 to-primary-800 rounded-2xl p-6 text-white shadow-lg flex flex-col justify-between">
+                        <div>
+                            <div class="inline-block bg-white/20 backdrop-blur-md px-3 py-1 rounded-full text-xs font-semibold mb-3">Interactive Learning</div>
+                            <h2 class="text-xl font-bold mb-2">Study MCQs Mode</h2>
+                            <p class="text-primary-100 text-sm mb-6">Interactive 4-option cards with instant green/red validation and side-by-side Roman Urdu, Memory Tricks, and core concepts.</p>
+                        </div>
+                        <button onclick="switchTab('study')" class="bg-white text-primary-800 font-bold px-5 py-3 rounded-xl self-start hover:bg-primary-50 transition shadow-md">
+                            Start Studying <i class="fa-solid fa-arrow-right ml-2"></i>
+                        </button>
+                    </div>
+
+                    <div class="bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl p-6 text-white shadow-lg flex flex-col justify-between">
+                        <div>
+                            <div class="inline-block bg-white/10 backdrop-blur-md px-3 py-1 rounded-full text-xs font-semibold mb-3">Evaluation Engine</div>
+                            <h2 class="text-xl font-bold mb-2">Take Practice Test</h2>
+                            <p class="text-slate-300 text-sm mb-6">Timed randomized tests by subject or full bank. No answers revealed until completion.</p>
+                        </div>
+                        <button onclick="switchTab('test-config')" class="bg-primary-500 text-white font-bold px-5 py-3 rounded-xl self-start hover:bg-primary-600 transition shadow-md">
+                            Configure Test <i class="fa-solid fa-pen-to-square ml-2"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="bg-white dark:bg-slate-800 p-6 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm">
+                    <h3 class="text-lg font-bold text-slate-900 dark:text-white mb-4"><i class="fa-solid fa-layer-group text-primary-600 mr-2"></i> Subject Distribution</h3>
+                    <div id="dash-subject-list" class="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                        <div class="text-slate-400 text-sm italic col-span-full">No questions loaded yet.</div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ONLINE DATA MANAGEMENT (ADMIN ONLY) -->
+            <section id="view-upload" class="admin-only hidden space-y-6">
+                <div>
+                    <h1 class="text-2xl font-bold text-slate-900 dark:text-white">Live Data Sources (Google Sheet & Excel)</h1>
+                    <p class="text-slate-500 dark:text-slate-400 text-sm">Connect your published Google Sheet URL for instant live updates, or manually upload Excel files.</p>
+                </div>
+
+                <!-- Google Sheet Auto Sync Setting -->
+                <div class="bg-white dark:bg-slate-800 p-6 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm space-y-4">
+                    <h2 class="text-lg font-bold text-slate-900 dark:text-white flex items-center">
+                        <i class="fa-solid fa-table text-emerald-500 mr-2"></i> Live Google Sheet CSV URL
+                    </h2>
+                    <p class="text-xs text-slate-500 dark:text-slate-400">
+                        Paste your published Google Sheet CSV link below. Website par jab bhi koi aayega, usko latest questions live dikhenge.
+                    </p>
+                    <div class="flex flex-col sm:flex-row gap-3">
+                        <input type="url" id="sheet-url-input" placeholder="https://docs.google.com/spreadsheets/d/e/.../pub?output=csv" class="flex-1 bg-slate-50 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-xl px-4 py-3 text-sm text-slate-900 dark:text-white font-medium focus:ring-2 focus:ring-primary-500">
+                        <button onclick="saveAndSyncSheetURL()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-6 py-3 rounded-xl transition text-sm flex items-center justify-center shrink-0">
+                            <i class="fa-solid fa-rotate mr-2"></i> Save & Sync Live Data
+                        </button>
+                    </div>
+                </div>
+
+                <div class="grid md:grid-cols-3 gap-6">
+                    <div class="md:col-span-2 bg-white dark:bg-slate-800 p-6 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm">
+                        <h2 class="text-lg font-bold text-slate-900 dark:text-white mb-4"><i class="fa-solid fa-cloud-arrow-up text-primary-600 mr-2"></i> Fallback Manual File Upload</h2>
+                        
+                        <div id="drop-zone" class="border-2 border-dashed border-slate-300 dark:border-slate-600 rounded-2xl p-8 text-center hover:border-primary-500 dark:hover:border-primary-400 transition cursor-pointer bg-slate-50/50 dark:bg-slate-800/50">
+                            <i class="fa-solid fa-file-excel text-5xl text-emerald-500 mb-4"></i>
+                            <p class="font-bold text-slate-800 dark:text-slate-200 mb-1">Click to browse or drop your Excel file here</p>
+                            <p class="text-xs text-slate-500 dark:text-slate-400 mb-4">Supports .XLSX and .XLS spreadsheet files</p>
+                            <input type="file" id="excel-file-input" accept=".xlsx, .xls" class="hidden">
+                            <button onclick="document.getElementById('excel-file-input').click()" class="bg-primary-600 hover:bg-primary-700 text-white font-medium text-sm px-5 py-2.5 rounded-xl shadow transition">
+                                Select File
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="bg-slate-50 dark:bg-slate-800/60 p-6 rounded-2xl border border-slate-200 dark:border-slate-700">
+                        <h2 class="text-base font-bold text-slate-900 dark:text-white mb-3"><i class="fa-solid fa-list-check text-primary-600 mr-2"></i> Expected Columns</h2>
+                        <ul class="text-xs space-y-2 text-slate-700 dark:text-slate-300 font-mono">
+                            <li class="flex items-center"><i class="fa-solid fa-check text-emerald-500 mr-2"></i> MCQ #</li>
+                            <li class="flex items-center"><i class="fa-solid fa-check text-emerald-500 mr-2"></i> Paper No (Optional)</li>
+                            <li class="flex items-center"><i class="fa-solid fa-check text-emerald-500 mr-2"></i> Subject</li>
+                            <li class="flex items-center"><i class="fa-solid fa-check text-emerald-500 mr-2"></i> Original Question</li>
+                            <li class="flex items-center"><i class="fa-solid fa-check text-emerald-500 mr-2"></i> Option A, Option B, Option C, Option D</li>
+                            <li class="flex items-center"><i class="fa-solid fa-check text-emerald-500 mr-2"></i> Correct Answer</li>
+                            <li class="flex items-center"><i class="fa-solid fa-check text-emerald-500 mr-2"></i> Roman Urdu Explanation</li>
+                            <li class="flex items-center"><i class="fa-solid fa-check text-emerald-500 mr-2"></i> Concept</li>
+                            <li class="flex items-center"><i class="fa-solid fa-check text-emerald-500 mr-2"></i> Memory Trick</li>
+                            <li class="flex items-center"><i class="fa-solid fa-check text-emerald-500 mr-2"></i> Extra Exam Knowledge</li>
+                            <li class="flex items-center"><i class="fa-solid fa-check text-emerald-500 mr-2"></i> One-Line Revision Note</li>
+                        </ul>
+                    </div>
+                </div>
+            </section>
+
+            <!-- STUDY MODE -->
+            <section id="view-study" class="hidden space-y-6">
+                <div class="bg-white dark:bg-slate-800 p-4 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col md:flex-row items-center justify-between gap-4">
+                    <div class="flex flex-col sm:flex-row items-center gap-3 w-full md:w-auto">
+                        <div class="flex items-center space-x-2 w-full sm:w-auto">
+                            <i class="fa-solid fa-filter text-primary-600"></i>
+                            <select id="study-subject-filter" class="bg-slate-100 dark:bg-slate-700 text-slate-900 dark:text-white text-sm font-semibold rounded-xl px-3 py-2.5 border-none focus:ring-2 focus:ring-primary-500 w-full sm:w-48">
+                                <option value="ALL">All Subjects</option>
+                            </select>
+                        </div>
+                        <div class="flex items-center space-x-2 w-full sm:w-auto">
+                            <i class="fa-solid fa-file-lines text-primary-600"></i>
+                            <select id="study-paper-filter" class="bg-slate-100 dark:bg-slate-700 text-slate-900 dark:text-white text-sm font-semibold rounded-xl px-3 py-2.5 border-none focus:ring-2 focus:ring-primary-500 w-full sm:w-48">
+                                <option value="ALL">All Papers</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="flex items-center justify-between md:justify-end space-x-3 w-full md:w-auto">
+                        <span id="study-progress-text" class="text-xs font-bold text-slate-500 dark:text-slate-400">MCQ 1 of 0</span>
+                        <button onclick="shuffleStudyQuestions()" class="bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-800 dark:text-slate-200 px-3 py-2 rounded-xl text-xs font-bold transition">
+                            <i class="fa-solid fa-shuffle mr-1"></i> Shuffle Questions
+                        </button>
+                    </div>
+                </div>
+
+                <div class="grid lg:grid-cols-12 gap-6 items-start">
+                    <div class="lg:col-span-7 bg-white dark:bg-slate-800 p-6 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm space-y-6">
+                        <div class="flex justify-between items-start">
+                            <div class="flex items-center space-x-2">
+                                <span id="study-card-subject" class="bg-primary-100 dark:bg-primary-950 text-primary-700 dark:text-primary-300 text-xs font-extrabold px-3 py-1 rounded-full uppercase tracking-wider">Subject</span>
+                                <span id="study-card-paper" class="bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-300 text-xs font-extrabold px-3 py-1 rounded-full uppercase tracking-wider">Paper 1</span>
+                            </div>
+                            <span id="study-card-num" class="text-xs font-bold text-slate-400">#1</span>
+                        </div>
+
+                        <h2 id="study-card-question" class="text-lg sm:text-xl font-bold text-slate-900 dark:text-white leading-relaxed">
+                            Loading questions...
+                        </h2>
+
+                        <div id="study-options-container" class="space-y-3 pt-2"></div>
+
+                        <div id="study-end-banner" class="hidden bg-amber-50 dark:bg-amber-950/60 border border-amber-300 dark:border-amber-800 p-3.5 rounded-xl text-amber-800 dark:text-amber-300 text-xs font-bold text-center">
+                            <i class="fa-solid fa-flag-checkered mr-2"></i> End of Questions (Sary questions khatam ho gaye hain).
+                        </div>
+
+                        <div class="flex items-center justify-between pt-4 border-t border-slate-200 dark:border-slate-700">
+                            <button onclick="navigateStudy(-1)" id="study-prev-btn" class="bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-800 dark:text-slate-200 font-bold px-4 py-2.5 rounded-xl text-sm transition disabled:opacity-40 disabled:cursor-not-allowed">
+                                <i class="fa-solid fa-chevron-left mr-1.5"></i> Previous
+                            </button>
+                            <button onclick="navigateStudy(1)" id="study-next-btn" class="bg-primary-600 hover:bg-primary-700 text-white font-bold px-5 py-2.5 rounded-xl text-sm transition shadow disabled:opacity-40 disabled:cursor-not-allowed">
+                                Next <i class="fa-solid fa-chevron-right ml-1.5"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="lg:col-span-5 bg-slate-900 text-white p-6 rounded-2xl border border-slate-800 shadow-xl space-y-5 sticky top-20">
+                        <div class="flex items-center space-x-2 text-amber-400 border-b border-slate-800 pb-3">
+                            <i class="fa-solid fa-lightbulb text-lg"></i>
+                            <h3 class="font-bold text-sm uppercase tracking-wider">Explanation & Insights</h3>
+                        </div>
+
+                        <div class="space-y-4 text-sm max-h-[70vh] overflow-y-auto custom-scrollbar pr-2">
+                            <div>
+                                <span class="text-xs font-bold text-primary-400 uppercase tracking-wider block mb-1">Roman Urdu Explanation</span>
+                                <p id="study-exp-roman" class="text-slate-300 leading-relaxed italic bg-slate-800/80 p-3 rounded-xl border border-slate-700/50">Select an option to display explanation.</p>
+                            </div>
+                            <div>
+                                <span class="text-xs font-bold text-emerald-400 uppercase tracking-wider block mb-1">Core Concept</span>
+                                <p id="study-exp-concept" class="text-slate-300 bg-slate-800/80 p-3 rounded-xl border border-slate-700/50">-</p>
+                            </div>
+                            <div>
+                                <span class="text-xs font-bold text-purple-400 uppercase tracking-wider block mb-1">Memory Trick</span>
+                                <p id="study-exp-trick" class="text-slate-300 bg-slate-800/80 p-3 rounded-xl border border-slate-700/50">-</p>
+                            </div>
+                            <div>
+                                <span class="text-xs font-bold text-sky-400 uppercase tracking-wider block mb-1">Extra Exam Knowledge</span>
+                                <p id="study-exp-extra" class="text-slate-300 bg-slate-800/80 p-3 rounded-xl border border-slate-700/50">-</p>
+                            </div>
+                            <div>
+                                <span class="text-xs font-bold text-rose-400 uppercase tracking-wider block mb-1">One-Line Revision Note</span>
+                                <p id="study-exp-note" class="text-slate-200 font-semibold bg-rose-950/40 border border-rose-800/40 p-3 rounded-xl">-</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- TEST CONFIGURATION -->
+            <section id="view-test-config" class="hidden space-y-6 max-w-2xl mx-auto">
+                <div>
+                    <h1 class="text-2xl font-bold text-slate-900 dark:text-white">Configure Practice Test</h1>
+                    <p class="text-slate-500 dark:text-slate-400 text-sm">Select subject, paper number, and question limits before starting your test session.</p>
+                </div>
+
+                <div class="bg-white dark:bg-slate-800 p-6 sm:p-8 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm space-y-6">
+                    <div class="grid sm:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">Target Subject</label>
+                            <select id="test-config-subject" onchange="updateTestConfigMax()" class="w-full bg-slate-50 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-xl px-4 py-3 text-slate-900 dark:text-white font-medium focus:ring-2 focus:ring-primary-500">
+                                <option value="ALL">All Subjects</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">Paper Number</label>
+                            <select id="test-config-paper" onchange="updateTestConfigMax()" class="w-full bg-slate-50 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-xl px-4 py-3 text-slate-900 dark:text-white font-medium focus:ring-2 focus:ring-primary-500">
+                                <option value="ALL">All Papers</option>
+                            </select>
+                        </div>
+                    </div>
+                    <span id="test-available-count-text" class="text-xs font-medium text-slate-500 dark:text-slate-400 block">Available MCQs: 0</span>
+
+                    <div>
+                        <label class="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">Number of Questions</label>
+                        <div class="grid grid-cols-4 gap-3 mb-3">
+                            <button type="button" onclick="setTestCountPreset(10)" class="count-preset-btn bg-slate-100 dark:bg-slate-700 py-2.5 rounded-xl font-bold text-sm text-slate-800 dark:text-slate-200 hover:bg-primary-600 hover:text-white transition">10</button>
+                            <button type="button" onclick="setTestCountPreset(25)" class="count-preset-btn bg-slate-100 dark:bg-slate-700 py-2.5 rounded-xl font-bold text-sm text-slate-800 dark:text-slate-200 hover:bg-primary-600 hover:text-white transition">25</button>
+                            <button type="button" onclick="setTestCountPreset(50)" class="count-preset-btn bg-slate-100 dark:bg-slate-700 py-2.5 rounded-xl font-bold text-sm text-slate-800 dark:text-slate-200 hover:bg-primary-600 hover:text-white transition">50</button>
+                            <button type="button" onclick="setTestCountPreset('ALL')" class="count-preset-btn bg-slate-100 dark:bg-slate-700 py-2.5 rounded-xl font-bold text-sm text-slate-800 dark:text-slate-200 hover:bg-primary-600 hover:text-white transition">Max</button>
+                        </div>
+                        <input type="number" id="test-custom-count" min="1" value="10" class="w-full bg-slate-50 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-xl px-4 py-3 text-slate-900 dark:text-white font-bold">
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">Question Selection Order</label>
+                        <div class="grid grid-cols-2 gap-4">
+                            <label class="flex items-center space-x-3 p-3 bg-slate-50 dark:bg-slate-700 rounded-xl cursor-pointer border border-slate-200 dark:border-slate-600">
+                                <input type="radio" name="test-order" value="random" checked class="text-primary-600 focus:ring-primary-500">
+                                <span class="text-sm font-bold text-slate-800 dark:text-slate-200">Randomized</span>
+                            </label>
+                            <label class="flex items-center space-x-3 p-3 bg-slate-50 dark:bg-slate-700 rounded-xl cursor-pointer border border-slate-200 dark:border-slate-600">
+                                <input type="radio" name="test-order" value="excel" class="text-primary-600 focus:ring-primary-500">
+                                <span class="text-sm font-bold text-slate-800 dark:text-slate-200">Sheet Sequential</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <button onclick="startTestSession()" class="w-full bg-primary-600 hover:bg-primary-700 text-white font-extrabold text-base py-4 rounded-xl shadow-lg transition">
+                        Start Test Session <i class="fa-solid fa-play ml-2"></i>
+                    </button>
+                </div>
+            </section>
+
+            <!-- ACTIVE TEST ENGINE -->
+            <section id="view-test-engine" class="hidden space-y-6">
+                <div class="bg-white dark:bg-slate-800 p-4 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm flex items-center justify-between">
+                    <div>
+                        <div class="flex items-center space-x-2">
+                            <span id="test-engine-subject-badge" class="text-xs font-extrabold bg-primary-100 dark:bg-primary-950 text-primary-700 dark:text-primary-300 px-3 py-1 rounded-full uppercase">Subject</span>
+                            <span id="test-engine-paper-badge" class="text-xs font-extrabold bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-300 px-3 py-1 rounded-full uppercase">Paper 1</span>
+                        </div>
+                        <h2 id="test-engine-progress-title" class="text-sm font-bold text-slate-800 dark:text-slate-200 mt-1">Question 1 of 10</h2>
+                    </div>
+                    
+                    <div class="flex items-center space-x-4">
+                        <div class="text-right">
+                            <span class="text-xs text-slate-400 font-semibold block">Time Elapsed</span>
+                            <span id="test-timer-display" class="font-mono text-lg font-bold text-slate-800 dark:text-white">00:00</span>
+                        </div>
+                        <button onclick="confirmSubmitTest()" class="bg-rose-600 hover:bg-rose-700 text-white text-xs font-extrabold px-4 py-2.5 rounded-xl transition shadow">
+                            Submit Test
+                        </button>
+                    </div>
+                </div>
+
+                <div class="bg-white dark:bg-slate-800 p-6 sm:p-8 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm space-y-6">
+                    <h3 id="test-engine-question" class="text-lg sm:text-xl font-bold text-slate-900 dark:text-white leading-relaxed">
+                        Question text goes here...
+                    </h3>
+
+                    <div id="test-engine-options" class="space-y-3"></div>
+
+                    <div id="test-end-banner" class="hidden bg-amber-50 dark:bg-amber-950/60 border border-amber-300 dark:border-amber-800 p-3.5 rounded-xl text-amber-800 dark:text-amber-300 text-xs font-bold text-center">
+                        <i class="fa-solid fa-flag-checkered mr-2"></i> End of Test Questions! Click 'Submit Test' above to see your results.
+                    </div>
+
+                    <div class="flex justify-between items-center pt-4 border-t border-slate-200 dark:border-slate-700">
+                        <button onclick="navigateTest(-1)" id="test-prev-btn" class="bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-800 dark:text-slate-200 font-bold px-4 py-2.5 rounded-xl text-sm transition disabled:opacity-40 disabled:cursor-not-allowed">
+                            <i class="fa-solid fa-chevron-left mr-1.5"></i> Previous
+                        </button>
+                        <button onclick="navigateTest(1)" id="test-next-btn" class="bg-primary-600 hover:bg-primary-700 text-white font-bold px-5 py-2.5 rounded-xl text-sm transition shadow disabled:opacity-40 disabled:cursor-not-allowed">
+                            Next <i class="fa-solid fa-chevron-right ml-1.5"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="bg-white dark:bg-slate-800 p-4 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm">
+                    <span class="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-3">Question Palette</span>
+                    <div id="test-palette-grid" class="flex flex-wrap gap-2"></div>
+                </div>
+            </section>
+
+            <!-- TEST RESULT SCORECARD -->
+            <section id="view-test-results" class="hidden space-y-6">
+                <div class="bg-slate-900 text-white p-6 sm:p-8 rounded-2xl shadow-xl space-y-6">
+                    <div class="flex flex-col sm:flex-row justify-between sm:items-center gap-4 border-b border-slate-800 pb-6">
+                        <div>
+                            <span class="text-xs font-extrabold uppercase tracking-widest text-primary-400">Test Completed</span>
+                            <h1 class="text-2xl sm:text-3xl font-extrabold mt-1">Performance Report</h1>
+                        </div>
+                        <div id="result-grade-badge" class="px-5 py-2 rounded-xl text-lg font-extrabold bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 self-start sm:self-auto">
+                            PASSED
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                        <div class="bg-slate-800/80 p-4 rounded-xl border border-slate-700">
+                            <span class="text-xs text-slate-400 block font-semibold mb-1">Score Percentage</span>
+                            <span id="result-score-percent" class="text-3xl font-extrabold text-primary-400">0%</span>
+                        </div>
+                        <div class="bg-slate-800/80 p-4 rounded-xl border border-slate-700">
+                            <span class="text-xs text-slate-400 block font-semibold mb-1">Correct Answers</span>
+                            <span id="result-correct-count" class="text-3xl font-extrabold text-emerald-400">0</span>
+                        </div>
+                        <div class="bg-slate-800/80 p-4 rounded-xl border border-slate-700">
+                            <span class="text-xs text-slate-400 block font-semibold mb-1">Incorrect Answers</span>
+                            <span id="result-wrong-count" class="text-3xl font-extrabold text-rose-400">0</span>
+                        </div>
+                        <div class="bg-slate-800/80 p-4 rounded-xl border border-slate-700">
+                            <span class="text-xs text-slate-400 block font-semibold mb-1">Total Time</span>
+                            <span id="result-time-taken" class="text-3xl font-extrabold text-amber-400">00:00</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex justify-between items-center">
+                    <h2 class="text-lg font-bold text-slate-900 dark:text-white">Question Breakdown & Explanations</h2>
+                    <button onclick="switchTab('test-config')" class="bg-primary-600 text-white font-bold px-4 py-2 rounded-xl text-xs hover:bg-primary-700 transition">
+                        Take Another Test
+                    </button>
+                </div>
+
+                <div id="result-review-container" class="space-y-6"></div>
+            </section>
+
+            <!-- TEST HISTORY -->
+            <section id="view-history" class="hidden space-y-6">
+                <div>
+                    <h1 class="text-2xl font-bold text-slate-900 dark:text-white">Test History</h1>
+                    <p class="text-slate-500 dark:text-slate-400 text-sm">Review your past test attempts stored in IndexedDB.</p>
+                </div>
+
+                <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left border-collapse text-sm">
+                            <thead>
+                                <tr class="bg-slate-50 dark:bg-slate-700/50 border-b border-slate-200 dark:border-slate-700 text-xs font-bold uppercase text-slate-500 dark:text-slate-400">
+                                    <th class="p-4">Date & Time</th>
+                                    <th class="p-4">User</th>
+                                    <th class="p-4">Subject</th>
+                                    <th class="p-4">Attempted</th>
+                                    <th class="p-4">Score</th>
+                                    <th class="p-4">Percentage</th>
+                                    <th class="p-4 text-right">Time</th>
+                                </tr>
+                            </thead>
+                            <tbody id="history-table-body" class="divide-y divide-slate-200 dark:divide-slate-700">
+                                <tr>
+                                    <td colspan="7" class="p-6 text-center text-slate-400 italic">No past tests recorded.</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+        </main>
+    </div>
+
+    <!-- JAVASCRIPT LOGIC -->
+    <script>
+        // GLOBAL STATE
+        let currentUser = null;
+        let db = null;
+        let mcqBank = [];
+        let currentSubjectList = [];
+        let currentPaperList = [];
+        
+        // Study State
+        let studyIndex = 0;
+        let studyQuestions = [];
+        
+        // Test State
+        let activeTestQuestions = [];
+        let activeTestAnswers = {};
+        let activeTestIndex = 0;
+        let testTimerInterval = null;
+        let testSecondsElapsed = 0;
+
+        let googleSheetUrl = localStorage.getItem('mcq_sheet_csv_url') || "";
+
+        // Fallback Sample MCQ
+        const SAMPLE_MCQS = [
+            {
+                "MCQ #": 1,
+                "Paper No": "Paper 1",
+                "Subject": "General Knowledge",
+                "Original Question": "Which of the following is a decentralized digital cryptocurrency based on blockchain technology?",
+                "Option A": "Bitcoin",
+                "Option B": "PayPal",
+                "Option C": "Western Union",
+                "Option D": "SWIFT",
+                "Correct Answer": "Bitcoin",
+                "Roman Urdu Explanation": "Bitcoin pehli aur sab se maqbool digital cryptocurrency hai jo 2009 mein Satoshi Nakamoto ne banayi thi.",
+                "Concept": "Cryptocurrency & Blockchain",
+                "Memory Trick": "\"Bit\" + \"Coin\" = Digital currency ka baap",
+                "Extra Exam Knowledge": "Satoshi Nakamoto introduced Bitcoin whitepaper in 2008; network launched in Jan 2009.",
+                "One-Line Revision Note": "Bitcoin is the pioneer decentralized cryptocurrency invented by Satoshi Nakamoto in 2009."
+            }
+        ];
+
+        // 1. AUTHENTICATION CONTROLLER
+        function handleLogin(e) {
+            e.preventDefault();
+            const u = document.getElementById('login-username').value.trim();
+            const p = document.getElementById('login-password').value.trim();
+            const errEl = document.getElementById('login-error');
+
+            if (u === 'admin' && p === 'admin123') {
+                currentUser = { username: 'Admin User', role: 'admin' };
+            } else if (u === 'user' && p === 'user123') {
+                currentUser = { username: 'Student User', role: 'user' };
+            } else {
+                errEl.classList.remove('hidden');
+                return;
+            }
+
+            errEl.classList.add('hidden');
+            localStorage.setItem('mcq_master_user', JSON.stringify(currentUser));
+            applyUserRolePermissions();
+            document.getElementById('login-modal').classList.add('hidden');
+        }
+
+        function logout() {
+            localStorage.removeItem('mcq_master_user');
+            currentUser = null;
+            document.getElementById('login-modal').classList.remove('hidden');
+        }
+
+        function applyUserRolePermissions() {
+            if (!currentUser) return;
+
+            document.getElementById('user-display-name').innerText = currentUser.username;
+            document.getElementById('user-display-role').innerText = currentUser.role === 'admin' ? 'Administrator' : 'Student';
+
+            const adminElements = document.querySelectorAll('.admin-only');
+            if (currentUser.role === 'user') {
+                adminElements.forEach(el => el.classList.add('hidden'));
+                switchTab('dashboard');
+            } else {
+                adminElements.forEach(el => el.classList.remove('hidden'));
+            }
+        }
+
+        // 2. INDEXEDDB SETUP
+        function initDB() {
+            return new Promise((resolve, reject) => {
+                const request = indexedDB.open("MCQMasterDB", 1);
+                request.onupgradeneeded = (e) => {
+                    const database = e.target.result;
+                    if (!database.objectStoreNames.contains("mcqs")) {
+                        database.createObjectStore("mcqs", { keyPath: "id", autoIncrement: true });
+                    }
+                    if (!database.objectStoreNames.contains("history")) {
+                        database.createObjectStore("history", { keyPath: "id", autoIncrement: true });
+                    }
+                };
+                request.onsuccess = (e) => {
+                    db = e.target.result;
+                    resolve(db);
+                };
+                request.onerror = (e) => reject(e);
+            });
+        }
+
+        async function saveMCQsToDB(data) {
+            if (!db) await initDB();
+            const tx = db.transaction("mcqs", "readwrite");
+            const store = tx.objectStore("mcqs");
+            await store.clear();
+            data.forEach(item => store.add(item));
+        }
+
+        async function loadMCQsFromDB() {
+            if (!db) await initDB();
+            return new Promise((resolve) => {
+                const tx = db.transaction("mcqs", "readonly");
+                const store = tx.objectStore("mcqs");
+                const req = store.getAll();
+                req.onsuccess = () => resolve(req.result || []);
+            });
+        }
+
+        async function saveTestResultToDB(resultObj) {
+            if (!db) await initDB();
+            const tx = db.transaction("history", "readwrite");
+            const store = tx.objectStore("history");
+            store.add(resultObj);
+        }
+
+        async function loadTestHistoryFromDB() {
+            if (!db) await initDB();
+            return new Promise((resolve) => {
+                const tx = db.transaction("history", "readonly");
+                const store = tx.objectStore("history");
+                const req = store.getAll();
+                req.onsuccess = () => resolve(req.result || []);
+            });
+        }
+
+        // 3. LIVE GOOGLE SHEETS CSV FETCHING ENGINE
+        async function fetchGoogleSheetData(showToast = false) {
+            const urlInput = document.getElementById('sheet-url-input');
+            if (urlInput) urlInput.value = googleSheetUrl;
+
+            if (!googleSheetUrl) {
+                if (showToast) showAlert("Please set a published Google Sheet CSV URL in Settings.", "info");
+                return false;
+            }
+
+            try {
+                const response = await fetch(googleSheetUrl);
+                if (response.ok) {
+                    const csvText = await response.text();
+                    Papa.parse(csvText, {
+                        header: true,
+                        skipEmptyLines: true,
+                        complete: async (results) => {
+                            if (results.data && results.data.length > 0) {
+                                mcqBank = processParsedJSON(results.data);
+                                await saveMCQsToDB(mcqBank);
+                                updateUIWithMCQs("Google Sheet (Live)");
+                                if (showToast) showAlert(`Synced ${mcqBank.length} questions live from Google Sheet!`, 'success');
+                            }
+                        }
+                    });
+                    return true;
+                }
+            } catch (err) {
+                console.warn("Live Google Sheet fetch failed:", err);
+                if (showToast) showAlert("Failed to fetch Google Sheet. Check URL or internet connection.", "error");
+            }
+            return false;
+        }
+
+        function saveAndSyncSheetURL() {
+            const val = document.getElementById('sheet-url-input').value.trim();
+            if (!val) {
+                showAlert("Please enter a valid Google Sheet CSV URL", "error");
+                return;
+            }
+            googleSheetUrl = val;
+            localStorage.setItem('mcq_sheet_csv_url', googleSheetUrl);
+            fetchGoogleSheetData(true);
+        }
+
+        function processParsedJSON(json) {
+            return json.map((row, idx) => {
+                const getCol = (names) => {
+                    for (let n of names) {
+                        if (row[n] !== undefined && row[n] !== null) return row[n];
+                    }
+                    return "";
+                };
+
+                const correctVal = getCol(["Correct Answer", "CorrectAnswer", "Correct", "Answer", "Ans"]);
+                const optA = getCol(["Option A", "OptionA", "A"]).toString().trim();
+                const optB = getCol(["Option B", "OptionB", "B"]).toString().trim();
+                const optC = getCol(["Option C", "OptionC", "C"]).toString().trim();
+                const optD = getCol(["Option D", "OptionD", "D"]).toString().trim();
+
+                return {
+                    id: idx + 1,
+                    mcqNum: getCol(["MCQ #", "MCQ#", "MCQ"]) || (idx + 1),
+                    paperNo: (getCol(["Paper No", "PaperNo", "Paper"]) || "Paper 1").toString().trim(),
+                    subject: (getCol(["Subject"]) || "General").toString().trim(),
+                    question: getCol(["Original Question", "Question", "OriginalQuestion"]) || "Question missing",
+                    optionA: optA,
+                    optionB: optB,
+                    optionC: optC,
+                    optionD: optD,
+                    correctAnswer: normalizeAnswer(correctVal, optA, optB, optC, optD),
+                    romanUrdu: getCol(["Roman Urdu Explanation", "RomanUrduExplanation", "Roman Urdu"]) || "No Roman Urdu explanation provided.",
+                    concept: getCol(["Concept"]) || "N/A",
+                    memoryTrick: getCol(["Memory Trick", "MemoryTrick"]) || "N/A",
+                    extraKnowledge: getCol(["Extra Exam Knowledge", "ExtraExamKnowledge"]) || "N/A",
+                    revisionNote: getCol(["One-Line Revision Note", "OneLineRevisionNote", "Revision Note"]) || "N/A"
+                };
+            });
+        }
+
+        // ACCURATE MATCHING ENGINE FOR FULL TEXT ("Bitcoin") OR LETTER ("A") ANSWERS
+        function normalizeAnswer(val, optA = "", optB = "", optC = "", optD = "") {
+            if (val === undefined || val === null) return "A";
+            
+            const cleanRaw = val.toString().trim().replace(/^['"\s]+|['"\s]+$/g, '');
+            const upperStr = cleanRaw.toUpperCase();
+
+            if (upperStr === "A" || upperStr === "OPTION A" || upperStr === "OPTIONA" || upperStr === "1") return "A";
+            if (upperStr === "B" || upperStr === "OPTION B" || upperStr === "OPTIONB" || upperStr === "2") return "B";
+            if (upperStr === "C" || upperStr === "OPTION C" || upperStr === "OPTIONC" || upperStr === "3") return "C";
+            if (upperStr === "D" || upperStr === "OPTION D" || upperStr === "OPTIOND" || upperStr === "4") return "D";
+
+            const norm = (s) => s.toString().trim().toLowerCase().replace(/\s+/g, ' ');
+            const valNorm = norm(cleanRaw);
+
+            if (optA && norm(optA) === valNorm) return "A";
+            if (optB && norm(optB) === valNorm) return "B";
+            if (optC && norm(optC) === valNorm) return "C";
+            if (optD && norm(optD) === valNorm) return "D";
+
+            if (optA && valNorm.length > 0 && norm(optA).includes(valNorm)) return "A";
+            if (optB && valNorm.length > 0 && norm(optB).includes(valNorm)) return "B";
+            if (optC && valNorm.length > 0 && norm(optC).includes(valNorm)) return "C";
+            if (optD && valNorm.length > 0 && norm(optD).includes(valNorm)) return "D";
+
+            if (upperStr.startsWith("A")) return "A";
+            if (upperStr.startsWith("B")) return "B";
+            if (upperStr.startsWith("C")) return "C";
+            if (upperStr.startsWith("D")) return "D";
+
+            return "A";
+        }
+
+        function getOptionTextByKey(q, keyLetter) {
+            const cleanKey = keyLetter ? keyLetter.toString().trim().toUpperCase() : "";
+            if (cleanKey === "A") return q.optionA;
+            if (cleanKey === "B") return q.optionB;
+            if (cleanKey === "C") return q.optionC;
+            if (cleanKey === "D") return q.optionD;
+            return "N/A";
+        }
+
+        // 4. UI RENDERING & DATA BINDING
+        function updateUIWithMCQs(sourceLabel) {
+            document.getElementById('sidebar-mcq-count').innerText = mcqBank.length;
+            document.getElementById('sidebar-active-source').innerText = sourceLabel;
+            document.getElementById('dash-total-mcqs').innerText = mcqBank.length;
+
+            const subjects = [...new Set(mcqBank.map(item => item.subject))];
+            const papers = [...new Set(mcqBank.map(item => item.paperNo))];
+            
+            currentSubjectList = subjects;
+            currentPaperList = papers;
+            
+            document.getElementById('dash-total-subjects').innerText = subjects.length;
+
+            const statusPill = document.getElementById('file-status-pill');
+            statusPill.classList.remove('hidden');
+            document.getElementById('file-status-text').innerText = `${sourceLabel} (${mcqBank.length} MCQs)`;
+
+            const subListEl = document.getElementById('dash-subject-list');
+            subListEl.innerHTML = '';
+            subjects.forEach(sub => {
+                const count = mcqBank.filter(i => i.subject === sub).length;
+                const card = document.createElement('div');
+                card.className = "p-3.5 bg-slate-50 dark:bg-slate-700/50 rounded-xl border border-slate-200 dark:border-slate-600 flex justify-between items-center";
+                card.innerHTML = `
+                    <span class="font-bold text-sm text-slate-800 dark:text-slate-200 truncate">${sub}</span>
+                    <span class="bg-primary-100 dark:bg-primary-950 text-primary-700 dark:text-primary-300 text-xs font-extrabold px-2.5 py-1 rounded-lg">${count}</span>
+                `;
+                subListEl.appendChild(card);
+            });
+
+            populateFilterDropdowns(subjects, papers);
+            initStudyMode();
+        }
+
+        function populateFilterDropdowns(subjects, papers) {
+            const studySub = document.getElementById('study-subject-filter');
+            const studyPaper = document.getElementById('study-paper-filter');
+            const testSub = document.getElementById('test-config-subject');
+            const testPaper = document.getElementById('test-config-paper');
+
+            studySub.innerHTML = '<option value="ALL">All Subjects</option>';
+            testSub.innerHTML = '<option value="ALL">All Subjects</option>';
+            subjects.forEach(sub => {
+                studySub.innerHTML += `<option value="${sub}">${sub}</option>`;
+                testSub.innerHTML += `<option value="${sub}">${sub}</option>`;
+            });
+
+            studyPaper.innerHTML = '<option value="ALL">All Papers</option>';
+            testPaper.innerHTML = '<option value="ALL">All Papers</option>';
+            papers.forEach(p => {
+                studyPaper.innerHTML += `<option value="${p}">${p}</option>`;
+                testPaper.innerHTML += `<option value="${p}">${p}</option>`;
+            });
+        }
+
+        // 5. STUDY MODE CONTROLLER
+        function initStudyMode() {
+            const selectedSub = document.getElementById('study-subject-filter').value;
+            const selectedPaper = document.getElementById('study-paper-filter').value;
+
+            studyQuestions = mcqBank.filter(q => {
+                const matchSub = (selectedSub === 'ALL' || q.subject === selectedSub);
+                const matchPaper = (selectedPaper === 'ALL' || q.paperNo === selectedPaper);
+                return matchSub && matchPaper;
+            });
+
+            studyIndex = 0;
+            renderStudyCard();
+        }
+
+        function renderStudyCard() {
+            const prevBtn = document.getElementById('study-prev-btn');
+            const nextBtn = document.getElementById('study-next-btn');
+            const endBanner = document.getElementById('study-end-banner');
+
+            if (studyQuestions.length === 0) {
+                document.getElementById('study-card-question').innerText = "No MCQs available in this subject/paper selection.";
+                document.getElementById('study-options-container').innerHTML = '';
+                prevBtn.disabled = true;
+                nextBtn.disabled = true;
+                endBanner.classList.add('hidden');
+                return;
+            }
+
+            const q = studyQuestions[studyIndex];
+            document.getElementById('study-card-subject').innerText = q.subject;
+            document.getElementById('study-card-paper').innerText = q.paperNo;
+            document.getElementById('study-card-num').innerText = `#${studyIndex + 1}`;
+            document.getElementById('study-progress-text').innerText = `MCQ ${studyIndex + 1} of ${studyQuestions.length}`;
+            document.getElementById('study-card-question').innerText = q.question;
+
+            const container = document.getElementById('study-options-container');
+            container.innerHTML = '';
+
+            const options = [
+                { key: 'A', text: q.optionA },
+                { key: 'B', text: q.optionB },
+                { key: 'C', text: q.optionC },
+                { key: 'D', text: q.optionD }
+            ];
+
+            options.forEach(opt => {
+                const btn = document.createElement('button');
+                btn.className = "study-opt-btn w-full text-left p-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-700/50 hover:bg-slate-100 dark:hover:bg-slate-700 transition flex items-center space-x-3";
+                btn.onclick = () => selectStudyOption(opt.key, q, btn);
+                btn.innerHTML = `
+                    <span class="opt-badge font-bold text-xs bg-slate-200 dark:bg-slate-600 text-slate-700 dark:text-slate-200 w-7 h-7 rounded-lg flex items-center justify-center shrink-0">${opt.key}</span>
+                    <span class="text-sm font-medium text-slate-800 dark:text-slate-200">${opt.text}</span>
+                `;
+                container.appendChild(btn);
+            });
+
+            prevBtn.disabled = (studyIndex === 0);
+            if (studyIndex === studyQuestions.length - 1) {
+                nextBtn.disabled = true;
+                endBanner.classList.remove('hidden');
+            } else {
+                nextBtn.disabled = false;
+                endBanner.classList.add('hidden');
+            }
+
+            resetExplanationPane();
+        }
+
+        function selectStudyOption(selectedKey, q, btnElement) {
+            const allBtns = document.querySelectorAll('.study-opt-btn');
+            allBtns.forEach(b => b.disabled = true);
+
+            const cleanSelected = selectedKey.toString().trim().toUpperCase();
+            const cleanCorrect = q.correctAnswer.toString().trim().toUpperCase();
+            const isCorrect = cleanSelected === cleanCorrect;
+
+            if (isCorrect) {
+                btnElement.classList.remove('bg-slate-50', 'dark:bg-slate-700/50');
+                btnElement.classList.add('bg-emerald-100', 'dark:bg-emerald-950/80', 'border-emerald-500', 'text-emerald-900', 'dark:text-emerald-200');
+            } else {
+                btnElement.classList.remove('bg-slate-50', 'dark:bg-slate-700/50');
+                btnElement.classList.add('bg-rose-100', 'dark:bg-rose-950/80', 'border-rose-500', 'text-rose-900', 'dark:text-rose-200');
+                
+                allBtns.forEach(b => {
+                    const badge = b.querySelector('.opt-badge');
+                    if (badge && badge.innerText.trim().toUpperCase() === cleanCorrect) {
+                        b.classList.remove('bg-slate-50', 'dark:bg-slate-700/50');
+                        b.classList.add('bg-emerald-100', 'dark:bg-emerald-950/80', 'border-emerald-500', 'text-emerald-900', 'dark:text-emerald-200');
+                    }
+                });
+            }
+
+            document.getElementById('study-exp-roman').innerText = q.romanUrdu;
+            document.getElementById('study-exp-concept').innerText = q.concept;
+            document.getElementById('study-exp-trick').innerText = q.memoryTrick;
+            document.getElementById('study-exp-extra').innerText = q.extraKnowledge;
+            document.getElementById('study-exp-note').innerText = q.revisionNote;
+        }
+
+        function resetExplanationPane() {
+            document.getElementById('study-exp-roman').innerText = "Select an option to display explanation.";
+            document.getElementById('study-exp-concept').innerText = "-";
+            document.getElementById('study-exp-trick').innerText = "-";
+            document.getElementById('study-exp-extra').innerText = "-";
+            document.getElementById('study-exp-note').innerText = "-";
+        }
+
+        function navigateStudy(dir) {
+            studyIndex += dir;
+            if (studyIndex < 0) studyIndex = 0;
+            if (studyIndex >= studyQuestions.length) studyIndex = studyQuestions.length - 1;
+            renderStudyCard();
+        }
+
+        function shuffleStudyQuestions() {
+            studyQuestions.sort(() => Math.random() - 0.5);
+            studyIndex = 0;
+            renderStudyCard();
+        }
+
+        // 6. TEST MODE ENGINE
+        function updateTestConfigMax() {
+            const sub = document.getElementById('test-config-subject').value;
+            const paper = document.getElementById('test-config-paper').value;
+
+            const filtered = mcqBank.filter(q => {
+                const matchSub = (sub === 'ALL' || q.subject === sub);
+                const matchPaper = (paper === 'ALL' || q.paperNo === paper);
+                return matchSub && matchPaper;
+            });
+
+            document.getElementById('test-available-count-text').innerText = `Available MCQs: ${filtered.length}`;
+        }
+
+        function setTestCountPreset(val) {
+            const sub = document.getElementById('test-config-subject').value;
+            const paper = document.getElementById('test-config-paper').value;
+
+            const filtered = mcqBank.filter(q => {
+                const matchSub = (sub === 'ALL' || q.subject === sub);
+                const matchPaper = (paper === 'ALL' || q.paperNo === paper);
+                return matchSub && matchPaper;
+            });
+
+            const customInput = document.getElementById('test-custom-count');
+            if (val === 'ALL') {
+                customInput.value = filtered.length;
+            } else {
+                customInput.value = Math.min(val, filtered.length);
+            }
+        }
+
+        function startTestSession() {
+            const sub = document.getElementById('test-config-subject').value;
+            const paper = document.getElementById('test-config-paper').value;
+
+            let available = mcqBank.filter(q => {
+                const matchSub = (sub === 'ALL' || q.subject === sub);
+                const matchPaper = (paper === 'ALL' || q.paperNo === paper);
+                return matchSub && matchPaper;
+            });
+
+            if (available.length === 0) {
+                showAlert("No MCQs available to start test for selected filters.", "error");
+                return;
+            }
+
+            const requestedCount = parseInt(document.getElementById('test-custom-count').value) || 10;
+            const order = document.querySelector('input[name="test-order"]:checked').value;
+
+            if (order === 'random') {
+                available.sort(() => Math.random() - 0.5);
+            }
+
+            activeTestQuestions = available.slice(0, requestedCount);
+            activeTestAnswers = {};
+            activeTestIndex = 0;
+            testSecondsElapsed = 0;
+
+            if (testTimerInterval) clearInterval(testTimerInterval);
+            testTimerInterval = setInterval(() => {
+                testSecondsElapsed++;
+                const mins = String(Math.floor(testSecondsElapsed / 60)).padStart(2, '0');
+                const secs = String(testSecondsElapsed % 60).padStart(2, '0');
+                document.getElementById('test-timer-display').innerText = `${mins}:${secs}`;
+            }, 1000);
+
+            switchTab('test-engine');
+            renderTestQuestion();
+        }
+
+        function renderTestQuestion() {
+            const q = activeTestQuestions[activeTestIndex];
+            document.getElementById('test-engine-subject-badge').innerText = q.subject;
+            document.getElementById('test-engine-paper-badge').innerText = q.paperNo;
+            document.getElementById('test-engine-progress-title').innerText = `Question ${activeTestIndex + 1} of ${activeTestQuestions.length}`;
+            document.getElementById('test-engine-question').innerText = q.question;
+
+            const container = document.getElementById('test-engine-options');
+            container.innerHTML = '';
+
+            const options = [
+                { key: 'A', text: q.optionA },
+                { key: 'B', text: q.optionB },
+                { key: 'C', text: q.optionC },
+                { key: 'D', text: q.optionD }
+            ];
+
+            const currentAns = activeTestAnswers[activeTestIndex];
+
+            options.forEach(opt => {
+                const isSelected = currentAns === opt.key;
+                const btn = document.createElement('button');
+                btn.className = `w-full text-left p-4 rounded-xl border transition flex items-center space-x-3 ${
+                    isSelected 
+                    ? 'bg-primary-50 dark:bg-primary-950/80 border-primary-500 text-primary-900 dark:text-primary-200 font-bold' 
+                    : 'bg-slate-50 dark:bg-slate-700/50 border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700'
+                }`;
+                btn.onclick = () => {
+                    activeTestAnswers[activeTestIndex] = opt.key;
+                    renderTestQuestion();
+                    renderTestPalette();
+                };
+                btn.innerHTML = `
+                    <span class="font-bold text-xs ${isSelected ? 'bg-primary-600 text-white' : 'bg-slate-200 dark:bg-slate-600 text-slate-700 dark:text-slate-200'} w-7 h-7 rounded-lg flex items-center justify-center shrink-0">${opt.key}</span>
+                    <span class="text-sm font-medium text-slate-800 dark:text-slate-200">${opt.text}</span>
+                `;
+                container.appendChild(btn);
+            });
+
+            const prevBtn = document.getElementById('test-prev-btn');
+            const nextBtn = document.getElementById('test-next-btn');
+            const endBanner = document.getElementById('test-end-banner');
+
+            prevBtn.disabled = (activeTestIndex === 0);
+            if (activeTestIndex === activeTestQuestions.length - 1) {
+                nextBtn.disabled = true;
+                endBanner.classList.remove('hidden');
+            } else {
+                nextBtn.disabled = false;
+                endBanner.classList.add('hidden');
+            }
+
+            renderTestPalette();
+        }
+
+        function renderTestPalette() {
+            const grid = document.getElementById('test-palette-grid');
+            grid.innerHTML = '';
+            activeTestQuestions.forEach((_, idx) => {
+                const btn = document.createElement('button');
+                const isAnswered = activeTestAnswers[idx] !== undefined;
+                const isCurrent = idx === activeTestIndex;
+
+                btn.className = `w-9 h-9 text-xs font-bold rounded-lg border transition ${
+                    isCurrent 
+                    ? 'ring-2 ring-primary-500 border-primary-500 bg-primary-600 text-white' 
+                    : isAnswered 
+                    ? 'bg-emerald-500 text-white border-emerald-600' 
+                    : 'bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 border-slate-300 dark:border-slate-600'
+                }`;
+                btn.innerText = idx + 1;
+                btn.onclick = () => {
+                    activeTestIndex = idx;
+                    renderTestQuestion();
+                };
+                grid.appendChild(btn);
+            });
+        }
+
+        function navigateTest(dir) {
+            activeTestIndex += dir;
+            if (activeTestIndex < 0) activeTestIndex = 0;
+            if (activeTestIndex >= activeTestQuestions.length) activeTestIndex = activeTestQuestions.length - 1;
+            renderTestQuestion();
+        }
+
+        function confirmSubmitTest() {
+            if (confirm("Are you sure you want to submit your test?")) {
+                finishTest();
+            }
+        }
+
+        async function finishTest() {
+            clearInterval(testTimerInterval);
+
+            let correct = 0;
+            let wrong = 0;
+
+            activeTestQuestions.forEach((q, idx) => {
+                const userAns = activeTestAnswers[idx];
+                if (userAns && userAns.trim().toUpperCase() === q.correctAnswer.trim().toUpperCase()) {
+                    correct++;
+                } else if (userAns !== undefined) {
+                    wrong++;
+                }
+            });
+
+            const total = activeTestQuestions.length;
+            const percent = Math.round((correct / total) * 100);
+
+            const resultObj = {
+                date: new Date().toLocaleString(),
+                username: currentUser ? currentUser.username : "Guest",
+                subject: `${document.getElementById('test-config-subject').value} (${document.getElementById('test-config-paper').value})`,
+                totalQuestions: total,
+                correctCount: correct,
+                wrongCount: wrong,
+                scorePercent: percent,
+                timeSpent: document.getElementById('test-timer-display').innerText
+            };
+
+            await saveTestResultToDB(resultObj);
+
+            document.getElementById('result-score-percent').innerText = `${percent}%`;
+            document.getElementById('result-correct-count').innerText = correct;
+            document.getElementById('result-wrong-count').innerText = wrong;
+            document.getElementById('result-time-taken').innerText = resultObj.timeSpent;
+
+            const badge = document.getElementById('result-grade-badge');
+            if (percent >= 50) {
+                badge.innerText = "PASSED";
+                badge.className = "px-5 py-2 rounded-xl text-lg font-extrabold bg-emerald-500/20 text-emerald-400 border border-emerald-500/40";
+            } else {
+                badge.innerText = "NEEDS IMPROVEMENT";
+                badge.className = "px-5 py-2 rounded-xl text-lg font-extrabold bg-rose-500/20 text-rose-400 border border-rose-500/40";
+            }
+
+            renderTestReview();
+            switchTab('test-results');
+            updateHistoryTable();
+        }
+
+        function renderTestReview() {
+            const container = document.getElementById('result-review-container');
+            container.innerHTML = '';
+
+            activeTestQuestions.forEach((q, idx) => {
+                const userKey = activeTestAnswers[idx];
+                const correctKey = q.correctAnswer;
+
+                const userText = userKey ? `${userKey}) ${getOptionTextByKey(q, userKey)}` : "Unattempted";
+                const correctText = `${correctKey}) ${getOptionTextByKey(q, correctKey)}`;
+
+                const isCorrect = userKey && (userKey.trim().toUpperCase() === correctKey.trim().toUpperCase());
+
+                const card = document.createElement('div');
+                card.className = `p-6 rounded-2xl border bg-white dark:bg-slate-800 space-y-4 shadow-sm ${
+                    isCorrect ? 'border-emerald-200 dark:border-emerald-900/50' : 'border-rose-200 dark:border-rose-900/50'
+                }`;
+
+                card.innerHTML = `
+                    <div class="flex justify-between items-center">
+                        <span class="text-xs font-bold px-3 py-1 rounded-full ${isCorrect ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300' : 'bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300'}">
+                            Question ${idx + 1} - ${isCorrect ? 'Correct' : 'Incorrect'}
+                        </span>
+                        <span class="text-xs text-slate-400 font-semibold">${q.subject} | ${q.paperNo}</span>
+                    </div>
+
+                    <h3 class="font-bold text-slate-900 dark:text-white text-base">${q.question}</h3>
+
+                    <div class="grid sm:grid-cols-2 gap-3 text-sm">
+                        <div class="p-3.5 rounded-xl ${isCorrect ? 'bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-300 dark:border-emerald-800' : 'bg-rose-50 dark:bg-rose-950/40 border border-rose-300 dark:border-rose-800'}">
+                            <span class="text-xs font-bold block text-slate-500 dark:text-slate-400 mb-1">Your Selection:</span>
+                            <span class="font-bold ${isCorrect ? 'text-emerald-800 dark:text-emerald-300' : 'text-rose-800 dark:text-rose-300'}">${userText}</span>
+                        </div>
+                        <div class="p-3.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-300 dark:border-emerald-800">
+                            <span class="text-xs font-bold block text-slate-500 dark:text-slate-400 mb-1">Correct Answer:</span>
+                            <span class="font-bold text-emerald-800 dark:text-emerald-300">${correctText}</span>
+                        </div>
+                    </div>
+
+                    <div class="bg-slate-900 text-white p-4 rounded-xl space-y-2 text-xs">
+                        <span class="text-primary-400 font-bold block">Roman Urdu Explanation:</span>
+                        <p class="text-slate-300 italic">${q.romanUrdu}</p>
+                        <div class="pt-2 border-t border-slate-800 grid sm:grid-cols-2 gap-2 text-slate-400">
+                            <div><strong class="text-emerald-400">Concept:</strong> ${q.concept}</div>
+                            <div><strong class="text-purple-400">Memory Trick:</strong> ${q.memoryTrick}</div>
+                        </div>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        // 7. HISTORY TABLE
+        async function updateHistoryTable() {
+            const history = await loadTestHistoryFromDB();
+            const tbody = document.getElementById('history-table-body');
+            tbody.innerHTML = '';
+
+            if (history.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" class="p-6 text-center text-slate-400 italic">No past tests recorded.</td></tr>';
+                return;
+            }
+
+            let highest = 0;
+            let sum = 0;
+
+            history.forEach(item => {
+                if (item.scorePercent > highest) highest = item.scorePercent;
+                sum += item.scorePercent;
+
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-slate-50 dark:hover:bg-slate-700/50 transition";
+                tr.innerHTML = `
+                    <td class="p-4 font-medium text-slate-800 dark:text-slate-200">${item.date}</td>
+                    <td class="p-4 font-semibold text-primary-600">${item.username || 'Student'}</td>
+                    <td class="p-4"><span class="bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs px-2.5 py-1 rounded-md font-bold">${item.subject}</span></td>
+                    <td class="p-4 font-semibold">${item.totalQuestions}</td>
+                    <td class="p-4 font-bold text-emerald-600 dark:text-emerald-400">${item.correctCount}/${item.totalQuestions}</td>
+                    <td class="p-4 font-extrabold text-primary-600 dark:text-primary-400">${item.scorePercent}%</td>
+                    <td class="p-4 text-right text-xs text-slate-400">${item.timeSpent}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            document.getElementById('dash-tests-taken').innerText = history.length;
+            document.getElementById('dash-high-score').innerText = `${highest}%`;
+            document.getElementById('dash-avg-score').innerText = `${Math.round(sum / history.length)}%`;
+        }
+
+        // 8. FILE UPLOAD EVENT LISTENERS
+        document.getElementById('excel-file-input').addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) parseUploadedFile(file);
+        });
+
+        const dropZone = document.getElementById('drop-zone');
+        dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('border-primary-500'); });
+        dropZone.addEventListener('dragleave', () => dropZone.classList.remove('border-primary-500'));
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('border-primary-500');
+            if (e.dataTransfer.files.length) parseUploadedFile(e.dataTransfer.files[0]);
+        });
+
+        function parseUploadedFile(file) {
+            const reader = new FileReader();
+            reader.onload = async (e) => {
+                const data = new Uint8Array(e.target.result);
+                const workbook = XLSX.read(data, { type: 'array' });
+                const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+                const jsonData = XLSX.utils.sheet_to_json(firstSheet);
+
+                if (jsonData && jsonData.length > 0) {
+                    mcqBank = processParsedJSON(jsonData);
+                    await saveMCQsToDB(mcqBank);
+                    updateUIWithMCQs(file.name);
+                    showAlert(`Successfully imported ${mcqBank.length} MCQs from ${file.name}`, 'success');
+                } else {
+                    showAlert("The uploaded Excel file contains no readable data rows.", "error");
+                }
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        // 9. ROUTING & NAVIGATION
+        function switchTab(tabName) {
+            if (currentUser && currentUser.role === 'user' && (tabName === 'upload')) {
+                showAlert("Access Denied: Only Admin can access this section.", "error");
+                return;
+            }
+
+            const views = ['dashboard', 'upload', 'study', 'test-config', 'test-engine', 'test-results', 'history'];
+            views.forEach(v => {
+                const el = document.getElementById(`view-${v}`);
+                if (el) el.classList.add('hidden');
+            });
+
+            document.querySelectorAll('.nav-btn').forEach(btn => {
+                btn.classList.remove('bg-primary-50', 'text-primary-600', 'dark:bg-slate-700', 'dark:text-primary-400');
+                btn.classList.add('text-slate-600', 'dark:text-slate-300');
+            });
+
+            const activeView = document.getElementById(`view-${tabName}`);
+            if (activeView) activeView.classList.remove('hidden');
+
+            const activeNav = document.getElementById(`nav-${tabName}`);
+            if (activeNav) {
+                activeNav.classList.add('bg-primary-50', 'text-primary-600', 'dark:bg-slate-700', 'dark:text-primary-400');
+            }
+
+            if (tabName === 'study') initStudyMode();
+            if (tabName === 'test-config') updateTestConfigMax();
+
+            document.getElementById('sidebar').classList.add('-translate-x-full');
+        }
+
+        // 10. HELPER FUNCTIONS & INITIALIZATION
+        function showAlert(msg, type = 'info') {
+            const banner = document.getElementById('alert-banner');
+            const msgEl = document.getElementById('alert-msg');
+            const iconEl = document.getElementById('alert-icon');
+
+            banner.className = "mb-6 p-4 rounded-xl flex items-center justify-between border shadow-sm transition ";
+            
+            if (type === 'success') {
+                banner.classList.add('bg-emerald-50', 'border-emerald-200', 'text-emerald-800', 'dark:bg-emerald-950/50', 'dark:text-emerald-300');
+                iconEl.className = "fa-solid fa-circle-check text-emerald-600";
+            } else if (type === 'error') {
+                banner.classList.add('bg-rose-50', 'border-rose-200', 'text-rose-800', 'dark:bg-rose-950/50', 'dark:text-rose-300');
+                iconEl.className = "fa-solid fa-triangle-exclamation text-rose-600";
+            } else {
+                banner.classList.add('bg-sky-50', 'border-sky-200', 'text-sky-800', 'dark:bg-sky-950/50', 'dark:text-sky-300');
+                iconEl.className = "fa-solid fa-circle-info text-sky-600";
+            }
+
+            msgEl.innerText = msg;
+            banner.classList.remove('hidden');
+        }
+
+        function dismissAlert() {
+            document.getElementById('alert-banner').classList.add('hidden');
+        }
+
+        document.getElementById('mobile-menu-btn').addEventListener('click', () => {
+            document.getElementById('sidebar').classList.toggle('-translate-x-full');
+        });
+
+        document.getElementById('theme-toggle').addEventListener('click', () => {
+            document.documentElement.classList.toggle('dark');
+        });
+
+        document.getElementById('study-subject-filter').addEventListener('change', () => {
+            initStudyMode();
+        });
+
+        document.getElementById('study-paper-filter').addEventListener('change', () => {
+            initStudyMode();
+        });
+
+        // APP BOOTSTRAP
+        window.addEventListener('DOMContentLoaded', async () => {
+            await initDB();
+
+            const storedUser = localStorage.getItem('mcq_master_user');
+            if (storedUser) {
+                currentUser = JSON.parse(storedUser);
+                applyUserRolePermissions();
+                document.getElementById('login-modal').classList.add('hidden');
+            } else {
+                document.getElementById('login-modal').classList.remove('hidden');
+            }
+
+            const cached = await loadMCQsFromDB();
+            if (cached && cached.length > 0) {
+                mcqBank = cached;
+                updateUIWithMCQs("IndexedDB Cache");
+            }
+
+            const fetched = await fetchGoogleSheetData(false);
+
+            if (!fetched && mcqBank.length === 0) {
+                mcqBank = processParsedJSON(SAMPLE_MCQS);
+                await saveMCQsToDB(mcqBank);
+                updateUIWithMCQs("Sample Data");
+            }
+
+            updateHistoryTable();
+        });
+    </script>
+</body>
+</html>
