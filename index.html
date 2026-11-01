@@ -217,7 +217,7 @@
                 <div class="bg-white dark:bg-slate-800 p-4 sm:p-6 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm">
                     <h3 class="text-base sm:text-lg font-bold text-slate-900 dark:text-white mb-4"><i class="fa-solid fa-layer-group text-primary-600 mr-2"></i> Subject Distribution</h3>
                     <div id="dash-subject-list" class="grid sm:grid-cols-2 lg:grid-cols-3 gap-2.5 sm:gap-3">
-                        <div class="text-slate-400 text-xs sm:text-sm italic col-span-full">No questions loaded yet.</div>
+                        <div class="text-slate-400 text-xs sm:text-sm italic col-span-full">Loading live questions from Google Sheet...</div>
                     </div>
                 </div>
             </section>
@@ -226,7 +226,7 @@
             <section id="view-upload" class="admin-only hidden space-y-6">
                 <div>
                     <h1 class="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white">Live Data Sources (Google Sheet & Excel)</h1>
-                    <p class="text-slate-500 dark:text-slate-400 text-xs sm:text-sm">Google Sheet link permanently integrated. You can also edit it here.</p>
+                    <p class="text-slate-500 dark:text-slate-400 text-xs sm:text-sm">Default Google Sheet URL is permanently set to auto-sync across all devices.</p>
                 </div>
 
                 <div class="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm space-y-4">
@@ -555,27 +555,6 @@
 
         // FIXED DEFAULT HARDCODED GOOGLE SHEET LINK
         const HARDCODED_GOOGLE_SHEET_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vR4Dh5XogHDfbe4wI0lPV5bkSQUXjVi5g-snXpqwJHjdbQ9Gg9Kdaud01OIeAofV3iQEZLZn8ty2fsu/pub?output=csv";
-        let googleSheetUrl = localStorage.getItem('mcq_sheet_csv_url') || HARDCODED_GOOGLE_SHEET_URL;
-
-        // Fallback Sample MCQ
-        const SAMPLE_MCQS = [
-            {
-                "MCQ #": 1,
-                "Paper No": "Paper 1",
-                "Subject": "General Knowledge",
-                "Original Question": "Which of the following is a decentralized digital cryptocurrency based on blockchain technology?",
-                "Option A": "Bitcoin",
-                "Option B": "PayPal",
-                "Option C": "Western Union",
-                "Option D": "SWIFT",
-                "Correct Answer": "Bitcoin",
-                "Roman Urdu Explanation": "Bitcoin pehli aur sab se maqbool digital cryptocurrency hai jo 2009 mein Satoshi Nakamoto ne banayi thi.",
-                "Concept": "Cryptocurrency & Blockchain",
-                "Memory Trick": "\"Bit\" + \"Coin\" = Digital currency ka baap",
-                "Extra Exam Knowledge": "Satoshi Nakamoto introduced Bitcoin whitepaper in 2008; network launched in Jan 2009.",
-                "One-Line Revision Note": "Bitcoin is the pioneer decentralized cryptocurrency invented by Satoshi Nakamoto in 2009."
-            }
-        ];
 
         // 1. AUTHENTICATION CONTROLLER
         function handleLogin(e) {
@@ -678,15 +657,13 @@
 
         // 3. LIVE GOOGLE SHEETS CSV FETCHING ENGINE
         async function fetchGoogleSheetData(showToast = false) {
-            googleSheetUrl = localStorage.getItem('mcq_sheet_csv_url') || HARDCODED_GOOGLE_SHEET_URL;
-            
             const urlInput = document.getElementById('sheet-url-input');
             if (urlInput) {
-                urlInput.value = googleSheetUrl;
+                urlInput.value = HARDCODED_GOOGLE_SHEET_URL;
             }
 
             try {
-                const response = await fetch(googleSheetUrl);
+                const response = await fetch(HARDCODED_GOOGLE_SHEET_URL);
                 if (response.ok) {
                     const csvText = await response.text();
                     Papa.parse(csvText, {
@@ -711,13 +688,6 @@
         }
 
         function saveAndSyncSheetURL() {
-            const val = document.getElementById('sheet-url-input').value.trim();
-            if (!val) {
-                showAlert("Please enter a valid Google Sheet CSV URL", "error");
-                return;
-            }
-            googleSheetUrl = val;
-            localStorage.setItem('mcq_sheet_csv_url', googleSheetUrl);
             fetchGoogleSheetData(true);
         }
 
@@ -1393,20 +1363,8 @@
                 document.getElementById('login-modal').classList.remove('hidden');
             }
 
-            const cached = await loadMCQsFromDB();
-            if (cached && cached.length > 0) {
-                mcqBank = cached;
-                updateUIWithMCQs("IndexedDB Cache");
-            }
-
-            // Always fetch live Google Sheet Data on boot
-            const fetched = await fetchGoogleSheetData(false);
-
-            if (!fetched && mcqBank.length === 0) {
-                mcqBank = processParsedJSON(SAMPLE_MCQS);
-                await saveMCQsToDB(mcqBank);
-                updateUIWithMCQs("Sample Data");
-            }
+            // Direct auto fetch from Google Sheet Link on every app open
+            await fetchGoogleSheetData(false);
 
             updateHistoryTable();
         });
